@@ -91,13 +91,10 @@ bool RefreshDateTime()
 
 void DateTime2String()
 {
-  bool validDate = 0;
   int nroftry = 0;
-  while (!validDate)
+  while (!RefreshDateTime())
   {
-    nroftry++;
-    validDate = RefreshDateTime();
-    if (nroftry > 1000)
+    if (++nroftry > 1000)
     {
       break;
     }
