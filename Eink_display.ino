@@ -21,15 +21,12 @@ NTPtime NTPhu("hu.pool.ntp.org");   // Choose server pool as required
 
 void setup()
 {
-  Serial.begin(115200);
   unsigned long wifitimeout = millis();
-  IPAddress ip( 192, 168, 178, 58 );
-  IPAddress gateway( 192, 168, 178, 1 );
-  IPAddress subnet( 255, 255, 255, 0 );
 
+  Serial.begin(115200);
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_39, 0); //1 = High, 0 = Low
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
-  WiFi.config(ip, gateway, subnet);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(50);
@@ -40,12 +37,11 @@ void setup()
   }
   display.init(); // uses standard SPI pins, e.g. SCK(18), MISO(19), MOSI(23), SS(5)
   u8g2Fonts.begin(display);
-  Serial.println("before");
   DateTime2String();
-  Serial.println("after");
   ReadTransmitter();
   DrawText();
   display.hibernate();
+  esp_deep_sleep_start();
 }
 
 void loop()
@@ -74,7 +70,9 @@ void DrawText()
     u8g2Fonts.print(displayData);
     u8g2Fonts.setFont(u8g2_font_logisoso16_tf);
     u8g2Fonts.setCursor(10, 26); // start writing at this position
-    u8g2Fonts.print("22:57:99");
+    u8g2Fonts.print(dateChar);
+    u8g2Fonts.setCursor(120, 26); // start writing at this position
+    u8g2Fonts.print(timeChar);
     u8g2Fonts.setCursor(215, 26); // start writing at this position
     u8g2Fonts.print("97%");
   }
@@ -83,11 +81,7 @@ void DrawText()
 
 bool RefreshDateTime()
 {
-  Serial.println("inside");
   dateTime = NTPhu.getNTPtime(1.0, 1);
-  delay(1000);
-  NTPhu.printDateTime(dateTime);
-  Serial.println(dateTime.valid);
   if (dateTime.year > 2035)
   {
     return 0;
@@ -97,13 +91,19 @@ bool RefreshDateTime()
 
 void DateTime2String()
 {
-  bool validdate = RefreshDateTime();
-  if (validdate)
+  bool validDate = 0;
+  int nroftry = 0;
+  while (!validDate)
   {
-    sprintf(dateChar, "%i-%02i-%02i", dateTime.year, dateTime.month, dateTime.day);
-    sprintf(timeChar, "%02i:%02i:%02i", dateTime.hour, dateTime.minute, dateTime.second);
-    Serial.println(timeChar);
+    nroftry++;
+    validDate = RefreshDateTime();
+    if (nroftry > 1000)
+    {
+      break;
+    }
   }
+  sprintf(dateChar, "%i-%02i-%02i", dateTime.year, dateTime.month, dateTime.day);
+  sprintf(timeChar, "%02i:%02i:%02i", dateTime.hour, dateTime.minute, dateTime.second);
 }
 
 void ReadTransmitter()
