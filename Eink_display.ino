@@ -6,13 +6,16 @@
 #include <credentials.h>
 
 //Defines
-#define TIMEOUT   5000  //5 sec
+#define TIMEOUT   5000  // 5 sec
+#define ANALOGPIN 39
+#define MINVOLT 2855.0 // 2.3/3.3*4095
 
 //Global variables
 const char* host = "http://192.168.178.53/";
 char dateChar[13];
 char timeChar[11];
 float transData;
+float batteryPercent;
 strDateTime dateTime;
 
 GxEPD2_BW<GxEPD2_213_B73, GxEPD2_213_B73::HEIGHT> display(GxEPD2_213_B73(/*CS=*/ 5, /*DC=*/ 17, /*RST=*/ 16, /*BUSY=*/ 4)); // GDEH0213B73
@@ -39,6 +42,7 @@ void setup()
   u8g2Fonts.begin(display);
   DateTime2String();
   ReadTransmitter();
+  BatteryLevel();
   DrawText();
   display.hibernate();
   esp_deep_sleep_start();
@@ -50,10 +54,13 @@ void loop()
 
 void DrawText()
 {
-  char displayData[8];
+  char tempChar[8];
+  char batteryChar[5];
 
-  dtostrf(transData, 4, 1, displayData);
-  strcat(displayData, "°C");
+  dtostrf(transData, 4, 1, tempChar);
+  strcat(tempChar, "°C");
+  dtostrf(batteryPercent, 2, 0, batteryChar);
+  strcat(batteryChar, "%");
   display.setRotation(1);
   u8g2Fonts.setFontMode(1);                 // use u8g2 transparent mode (this is default)
   u8g2Fonts.setFontDirection(0);            // left to right (this is default)
@@ -67,14 +74,14 @@ void DrawText()
   {
     display.fillScreen(GxEPD_WHITE);
     u8g2Fonts.setCursor(tempx, tempy); // start writing at this position
-    u8g2Fonts.print(displayData);
+    u8g2Fonts.print(tempChar);
     u8g2Fonts.setFont(u8g2_font_logisoso16_tf);
     u8g2Fonts.setCursor(10, 26); // start writing at this position
     u8g2Fonts.print(dateChar);
     u8g2Fonts.setCursor(120, 26); // start writing at this position
     u8g2Fonts.print(timeChar);
-    u8g2Fonts.setCursor(215, 26); // start writing at this position
-    u8g2Fonts.print("97%");
+    u8g2Fonts.setCursor(210, 26); // start writing at this position
+    u8g2Fonts.print(batteryChar);
   }
   while (display.nextPage());
 }
@@ -121,4 +128,22 @@ void ReadTransmitter()
   {
     transData = 0.0f;
   }
+}
+
+void BatteryLevel()
+{
+  unsigned int batteryData = 0;
+
+  for (int i = 0; i < 64; i++)
+  {
+    batteryData = batteryData + analogRead(ANALOGPIN);
+  }
+  batteryData = batteryData >> 6; //divide by 64
+  Serial.println(batteryData);
+  batteryPercent = (float(batteryData) - MINVOLT) / (4095.0 - MINVOLT) * 100.0;
+  if (batteryPercent<0.0)
+  {
+    batteryPercent = 0.0;
+  }
+  Serial.println(batteryPercent);
 }
