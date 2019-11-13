@@ -18,9 +18,12 @@ float transData;
 float batteryPercent;
 strDateTime dateTime;
 
+//Define services
 GxEPD2_BW<GxEPD2_213_B73, GxEPD2_213_B73::HEIGHT> display(GxEPD2_213_B73(/*CS=*/ 5, /*DC=*/ 17, /*RST=*/ 16, /*BUSY=*/ 4)); // GDEH0213B73
 U8G2_FOR_ADAFRUIT_GFX u8g2Fonts;
 NTPtime NTPhu("hu.pool.ntp.org");   // Choose server pool as required
+WiFiClient wclient;
+HTTPClient hclient;
 
 void setup()
 {
@@ -112,18 +115,17 @@ void DateTime2String()
 
 void ReadTransmitter()
 {
-  HTTPClient webclient;
-  webclient.begin(host);
-  webclient.setConnectTimeout(500);
-  if (HTTP_CODE_OK == webclient.GET())
+  hclient.begin(wclient, host);
+  hclient.setConnectTimeout(500);
+  if (HTTP_CODE_OK == hclient.GET())
   {
-    transData = webclient.getString().toFloat();
+    transData = hclient.getString().toFloat();
   }
   else
   {
     transData = 0.0f;
   }
-  webclient.end();
+  hclient.end();
   if ((transData < 10.0) || transData > 84.0)
   {
     transData = 0.0f;
