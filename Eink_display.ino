@@ -8,7 +8,7 @@
 //Defines
 #define TIMEOUT   5000  // 5 sec
 #define ANALOGPIN 39
-#define MINVOLT 2855.0 // 2.3/3.3*4095
+#define MINVOLT 3474.0 // 2.8/3.3*4095
 
 //Global variables
 const char* host = "http://192.168.178.53/";
@@ -31,6 +31,7 @@ void setup()
 
   Serial.begin(115200);
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_39, 0); //1 = High, 0 = Low
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_34, 1); //1 = High, 0 = Low
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
