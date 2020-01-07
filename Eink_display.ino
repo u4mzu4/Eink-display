@@ -28,8 +28,6 @@ HTTPClient hclient;
 void setup()
 {
   unsigned long wifitimeout = millis();
-
-  Serial.begin(115200);
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_39, 0); //1 = High, 0 = Low
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_34, 1); //1 = High, 0 = Low
   WiFi.persistent(false);
@@ -142,11 +140,9 @@ void BatteryLevel()
     batteryData = batteryData + analogRead(ANALOGPIN);
   }
   batteryData = batteryData >> 6; //divide by 64
-  Serial.println(batteryData);
   batteryPercent = (float(batteryData) - MINVOLT) / (4095.0 - MINVOLT) * 100.0;
   if (batteryPercent<0.0)
   {
     batteryPercent = 0.0;
   }
-  Serial.println(batteryPercent);
 }
