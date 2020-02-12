@@ -4,11 +4,16 @@
 #include <NTPtimeESP.h>
 #include <HTTPClient.h>
 #include <credentials.h>
+#include <Wire.h>
+#include <SparkFun_APDS9960.h>
 
 //Defines
 #define TIMEOUT   5000  // 5 sec
 #define ANALOGPIN 39
 #define MINVOLT 3474.0 // 2.8/3.3*4095
+#define APDS9960_INT    GPIO_NUM_34  // Needs to be an interrupt pin
+#define PROX_INT_HIGH   128 // Proximity level for interrupt
+#define PROX_INT_LOW    0   // No far interrupt
 
 //Global variables
 const char* host = "http://192.168.178.53/";
@@ -24,12 +29,14 @@ U8G2_FOR_ADAFRUIT_GFX u8g2Fonts;
 NTPtime NTPhu("hu.pool.ntp.org");   // Choose server pool as required
 WiFiClient wclient;
 HTTPClient hclient;
+SparkFun_APDS9960 apds = SparkFun_APDS9960();
 
 void setup()
 {
   unsigned long wifitimeout = millis();
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_39, 0); //1 = High, 0 = Low
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_34, 1); //1 = High, 0 = Low
+  esp_sleep_enable_ext0_wakeup(APDS9960_INT, 0); //1 = High, 0 = Low
+  SetupProximitySensor();
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
@@ -145,4 +152,15 @@ void BatteryLevel()
   {
     batteryPercent = 0.0;
   }
+}
+
+void SetupProximitySensor()
+{
+  apds.init();
+  apds.enableProximitySensor(true);
+  apds.setProximityIntLowThreshold(PROX_INT_LOW);
+  apds.setProximityIntHighThreshold(PROX_INT_HIGH);
+  apds.setProximityGain(PGAIN_8X);
+  apds.setProximityGain(LED_DRIVE_12_5MA);
+  apds.clearProximityInt();
 }
