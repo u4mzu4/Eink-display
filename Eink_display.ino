@@ -54,6 +54,8 @@ void setup()
   BatteryLevel();
   DrawText();
   display.hibernate();
+  apds.clearProximityInt();
+  delay(100);
   esp_deep_sleep_start();
 }
 
@@ -168,4 +170,5 @@ void SetupProximitySensor()
   apds.setProximityGain(PGAIN_8X);
   apds.setProximityGain(LED_DRIVE_12_5MA);
   apds.clearProximityInt();
+  delay(100);
 }
