@@ -9,8 +9,9 @@
 
 //Defines
 #define TIMEOUT   5000  // 5 sec
-#define ANALOGPIN 39
-#define MINVOLT 3474.0 // 2.8/3.3*4095
+#define ANALOGPIN 35
+#define MINVOLT 2048.0 // 3.3*4096/6.6
+#define MAXVOLT 2606.0 // 4.2*4096/6.6
 #define APDS9960_INT    GPIO_NUM_34  // Needs to be an interrupt pin
 #define PROX_INT_HIGH   128 // Proximity level for interrupt
 #define PROX_INT_LOW    0   // No far interrupt
@@ -34,7 +35,6 @@ SparkFun_APDS9960 apds = SparkFun_APDS9960();
 void setup()
 {
   unsigned long wifitimeout = millis();
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_39, 0); //1 = High, 0 = Low
   esp_sleep_enable_ext0_wakeup(APDS9960_INT, 0); //1 = High, 0 = Low
   SetupProximitySensor();
   WiFi.persistent(false);
@@ -147,11 +147,16 @@ void BatteryLevel()
     batteryData = batteryData + analogRead(ANALOGPIN);
   }
   batteryData = batteryData >> 6; //divide by 64
-  batteryPercent = (float(batteryData) - MINVOLT) / (4095.0 - MINVOLT) * 100.0;
-  if (batteryPercent<0.0)
+  batteryPercent = (float(batteryData) - MINVOLT) / (MAXVOLT - MINVOLT) * 100.0;
+  if (batteryPercent < 0.0)
   {
     batteryPercent = 0.0;
   }
+  if (batteryPercent > 100.0)
+  {
+    batteryPercent = 100.0;
+  }
+  
 }
 
 void SetupProximitySensor()
