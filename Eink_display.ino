@@ -10,8 +10,8 @@
 //Defines
 #define TIMEOUT   5000  // 5 sec
 #define ANALOGPIN 35
-#define MINVOLT 2048.0 // 3.3*4096/6.6
-#define MAXVOLT 2606.0 // 4.2*4096/6.6
+#define MINVOLT 1830.0 // 3.3*4096/6.6
+#define MAXVOLT 2330.0 // 4.2*4096/6.6
 #define APDS9960_INT    GPIO_NUM_34  // Needs to be an interrupt pin
 #define PROX_INT_HIGH   128 // Proximity level for interrupt
 #define PROX_INT_LOW    0   // No far interrupt
@@ -50,8 +50,6 @@ void setup()
   display.init(); // uses standard SPI pins, e.g. SCK(18), MISO(19), MOSI(23), SS(5)
   u8g2Fonts.begin(display);
   DateTime2String();
-  ReadTransmitter();
-  BatteryLevel();
   DrawText();
   display.hibernate();
   apds.clearProximityInt();
@@ -67,10 +65,14 @@ void DrawText()
 {
   char tempChar[8];
   char batteryChar[5];
+  float bPercent;
+  float tData;
 
-  dtostrf(transData, 4, 1, tempChar);
+  bPercent = BatteryLevel();
+  tData = ReadTransmitter();
+  dtostrf(tData, 4, 1, tempChar);
   strcat(tempChar, "°C");
-  dtostrf(batteryPercent, 2, 0, batteryChar);
+  dtostrf(bPercent, 2, 0, batteryChar);
   strcat(batteryChar, "%");
   display.setRotation(1);
   u8g2Fonts.setFontMode(1);                 // use u8g2 transparent mode (this is default)
@@ -121,7 +123,7 @@ void DateTime2String()
   sprintf(timeChar, "%02i:%02i:%02i", dateTime.hour, dateTime.minute, dateTime.second);
 }
 
-void ReadTransmitter()
+float ReadTransmitter()
 {
   hclient.begin(wclient, host);
   hclient.setConnectTimeout(500);
@@ -138,9 +140,10 @@ void ReadTransmitter()
   {
     transData = 0.0f;
   }
+  return transData;
 }
 
-void BatteryLevel()
+float BatteryLevel()
 {
   unsigned int batteryData = 0;
 
@@ -158,7 +161,7 @@ void BatteryLevel()
   {
     batteryPercent = 100.0;
   }
-  
+  return batteryPercent;
 }
 
 void SetupProximitySensor()
