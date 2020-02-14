@@ -20,8 +20,6 @@
 const char* host = "http://192.168.178.53/";
 char dateChar[13];
 char timeChar[11];
-float transData;
-float batteryPercent;
 strDateTime dateTime;
 
 //Define services
@@ -125,6 +123,8 @@ void DateTime2String()
 
 float ReadTransmitter()
 {
+  float transData;
+  
   hclient.begin(wclient, host);
   hclient.setConnectTimeout(500);
   if (HTTP_CODE_OK == hclient.GET())
@@ -145,6 +145,7 @@ float ReadTransmitter()
 
 float BatteryLevel()
 {
+  float batteryPercent;
   unsigned int batteryData = 0;
 
   for (int i = 0; i < 64; i++)
