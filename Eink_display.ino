@@ -7,15 +7,15 @@
 
 //Defines
 #define TIMEOUT   5000  // 5 sec
-#define ANALOGPIN 39
-#define MINVOLT 2855.0 // 2.3/3.3*4095
+#define ANALOGPIN 35
+#define MINVOLT 1830.0 // 3.3*4096/6.6
+#define MAXVOLT 2330.0 // 4.2*4096/6.6
+#define OFFSET 8.0
 
 //Global variables
 const char* host = "http://192.168.178.66/";
 char dateChar[13];
 char timeChar[11];
-float transData;
-float batteryPercent;
 strDateTime dateTime;
 
 //Define services
@@ -29,7 +29,6 @@ void setup()
 {
   unsigned long wifitimeout = millis();
 
-  Serial.begin(115200);
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_39, 0); //1 = High, 0 = Low
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
@@ -57,12 +56,17 @@ void loop()
 
 void DrawText()
 {
+  float bPercent;
+  float tData;
   char tempChar[8];
   char batteryChar[5];
 
-  dtostrf(transData, 4, 1, tempChar);
+  bPercent = BatteryLevel();
+  tData = ReadTransmitter();
+
+  dtostrf(tData, 4, 1, tempChar);
   strcat(tempChar, "°C");
-  dtostrf(batteryPercent, 2, 0, batteryChar);
+  dtostrf(bPercent, 2, 0, batteryChar);
   strcat(batteryChar, "%");
   display.setRotation(1);
   u8g2Fonts.setFontMode(1);                 // use u8g2 transparent mode (this is default)
@@ -113,13 +117,16 @@ void DateTime2String()
   sprintf(timeChar, "%02i:%02i:%02i", dateTime.hour, dateTime.minute, dateTime.second);
 }
 
-void ReadTransmitter()
+float ReadTransmitter()
 {
+  float transData;
+
   hclient.begin(wclient, host);
-  hclient.setConnectTimeout(500);
+  hclient.setConnectTimeout(1000);
   if (HTTP_CODE_OK == hclient.GET())
   {
     transData = hclient.getString().toFloat();
+    transData -= OFFSET;
   }
   else
   {
@@ -130,10 +137,12 @@ void ReadTransmitter()
   {
     transData = 0.0f;
   }
+  return transData;
 }
 
-void BatteryLevel()
+float BatteryLevel()
 {
+  float batteryPercent;
   unsigned int batteryData = 0;
 
   for (int i = 0; i < 64; i++)
@@ -141,11 +150,14 @@ void BatteryLevel()
     batteryData = batteryData + analogRead(ANALOGPIN);
   }
   batteryData = batteryData >> 6; //divide by 64
-  Serial.println(batteryData);
-  batteryPercent = (float(batteryData) - MINVOLT) / (4095.0 - MINVOLT) * 100.0;
-  if (batteryPercent<0.0)
+  batteryPercent = (float(batteryData) - MINVOLT) / (MAXVOLT - MINVOLT) * 100.0;
+  if (batteryPercent < 0.0)
   {
     batteryPercent = 0.0;
   }
-  Serial.println(batteryPercent);
+  if (batteryPercent > 100.0)
+  {
+    batteryPercent = 100.0;
+  }
+  return batteryPercent;
 }
