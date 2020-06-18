@@ -126,7 +126,7 @@ float ReadTransmitter()
   while ((!successComm) && (nrOfattempts < MAXNROFATTEMPTS))
   {
     hclient.begin(wclient, host);
-    hclient.setConnectTimeout(1000);
+    hclient.setConnectTimeout(500);
     if (HTTP_CODE_OK == hclient.GET())
     {
       successComm = 1;
