@@ -11,6 +11,7 @@
 #define MINVOLT 1830.0 // 3.3*4096/6.6
 #define MAXVOLT 2330.0 // 4.2*4096/6.6
 #define OFFSET 8.0
+#define MAXNROFATTEMPTS 8
 
 //Global variables
 const char* host = "http://192.168.178.66/";
@@ -42,6 +43,7 @@ void setup()
   }
   display.init(); // uses standard SPI pins, e.g. SCK(18), MISO(19), MOSI(23), SS(5)
   u8g2Fonts.begin(display);
+  display.clearScreen(GxEPD_WHITE);
   DateTime2String();
   ReadTransmitter();
   BatteryLevel();
@@ -76,21 +78,19 @@ void DrawText()
   u8g2Fonts.setFont(u8g2_font_logisoso58_tf);
   uint16_t tempx = (display.width() - 200) / 2;
   uint16_t tempy = display.height() - 20;
-  display.firstPage();
-  do
-  {
-    display.fillScreen(GxEPD_WHITE);
-    u8g2Fonts.setCursor(tempx, tempy); // start writing at this position
-    u8g2Fonts.print(tempChar);
-    u8g2Fonts.setFont(u8g2_font_logisoso16_tf);
-    u8g2Fonts.setCursor(10, 26); // start writing at this position
-    u8g2Fonts.print(dateChar);
-    u8g2Fonts.setCursor(120, 26); // start writing at this position
-    u8g2Fonts.print(timeChar);
-    u8g2Fonts.setCursor(210, 26); // start writing at this position
-    u8g2Fonts.print(batteryChar);
-  }
-  while (display.nextPage());
+  display.setFullWindow();
+  display.fillScreen(GxEPD_WHITE);
+  u8g2Fonts.setCursor(tempx, tempy); // start writing at this position
+  u8g2Fonts.print(tempChar);
+  u8g2Fonts.setFont(u8g2_font_logisoso16_tf);
+  u8g2Fonts.setCursor(10, 26); // start writing at this position
+  u8g2Fonts.print(dateChar);
+  u8g2Fonts.setCursor(120, 26); // start writing at this position
+  u8g2Fonts.print(timeChar);
+  u8g2Fonts.setCursor(210, 26); // start writing at this position
+  u8g2Fonts.print(batteryChar);
+  display.display(false);
+
 }
 
 bool RefreshDateTime()
@@ -120,19 +120,28 @@ void DateTime2String()
 float ReadTransmitter()
 {
   float transData;
+  int nrOfattempts = 0;
+  bool successComm = 0;
 
-  hclient.begin(wclient, host);
-  hclient.setConnectTimeout(1000);
-  if (HTTP_CODE_OK == hclient.GET())
+  while ((!successComm) && (nrOfattempts < MAXNROFATTEMPTS))
   {
-    transData = hclient.getString().toFloat();
-    transData -= OFFSET;
+    hclient.begin(wclient, host);
+    hclient.setConnectTimeout(1000);
+    if (HTTP_CODE_OK == hclient.GET())
+    {
+      successComm = 1;
+      transData = hclient.getString().toFloat();
+      transData -= OFFSET;
+    }
+    else
+    {
+      successComm = 0;
+      nrOfattempts ++;
+      transData = 0.0f;
+    }
+    hclient.end();
   }
-  else
-  {
-    transData = 0.0f;
-  }
-  hclient.end();
+
   if ((transData < 10.0) || transData > 84.0)
   {
     transData = 0.0f;
