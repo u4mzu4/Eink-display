@@ -14,7 +14,7 @@
 #define MAXNROFATTEMPTS 8
 
 //Global variables
-const char* host = "http://192.168.178.66/";
+const char* host = "http://192.168.1.66/";
 char dateChar[13];
 char timeChar[11];
 strDateTime dateTime;
