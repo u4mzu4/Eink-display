@@ -1,9 +1,10 @@
 //Includes
 #include <GxEPD2_BW.h>
 #include <U8g2_for_Adafruit_GFX.h>
-#include <NTPtimeESP.h>
+#include <time.h>
 #include <HTTPClient.h>
 #include <credentials.h>
+#include <InfluxDbClient.h>
 
 //Defines
 #define TIMEOUT   5000  // 5 sec
@@ -12,19 +13,19 @@
 #define MAXVOLT 2330.0 // 4.2*4096/6.6
 #define OFFSET 8.0
 #define MAXNROFATTEMPTS 8
+#define NTPSERVER "hu.pool.ntp.org"
 
 //Global variables
-const char* host = "http://192.168.1.66/";
 char dateChar[13];
 char timeChar[11];
-strDateTime dateTime;
+struct tm dateTime;
 
 //Define services
 GxEPD2_BW<GxEPD2_213_B73, GxEPD2_213_B73::HEIGHT> display(GxEPD2_213_B73(/*CS=*/ 5, /*DC=*/ 17, /*RST=*/ 16, /*BUSY=*/ 4)); // GDEH0213B73
 U8G2_FOR_ADAFRUIT_GFX u8g2Fonts;
-NTPtime NTPhu("hu.pool.ntp.org");   // Choose server pool as required
 WiFiClient wclient;
 HTTPClient hclient;
+InfluxDBClient influxclient(influxdb_URL, influxdb_ORG, influxdb_BUCKET, influxdb_TOKEN);
 
 void setup()
 {
@@ -41,6 +42,7 @@ void setup()
       break;
     }
   }
+  configTime(3600, 3600, NTPSERVER);
   display.init(); // uses standard SPI pins, e.g. SCK(18), MISO(19), MOSI(23), SS(5)
   u8g2Fonts.begin(display);
   display.clearScreen(GxEPD_WHITE);
@@ -95,26 +97,20 @@ void DrawText()
 
 bool RefreshDateTime()
 {
-  dateTime = NTPhu.getNTPtime(1.0, 1);
-  if (dateTime.year > 2035)
+  bool timeIsValid = getLocalTime(&dateTime);
+
+  if (dateTime.tm_year > 135)
   {
     return 0;
   }
-  return (dateTime.valid);
+  return (timeIsValid);
 }
 
 void DateTime2String()
 {
-  int nroftry = 0;
-  while (!RefreshDateTime())
-  {
-    if (++nroftry > 1000)
-    {
-      break;
-    }
-  }
-  sprintf(dateChar, "%i-%02i-%02i", dateTime.year, dateTime.month, dateTime.day);
-  sprintf(timeChar, "%02i:%02i:%02i", dateTime.hour, dateTime.minute, dateTime.second);
+  RefreshDateTime();
+  sprintf(dateChar, "%i-%02i-%02i", dateTime.tm_year + 1900, dateTime.tm_mon, dateTime.tm_mday);
+  sprintf(timeChar, "%02i:%02i:%02i", dateTime.tm_hour, dateTime.tm_min, dateTime.tm_sec);
 }
 
 float ReadTransmitter()
@@ -123,25 +119,20 @@ float ReadTransmitter()
   int nrOfattempts = 0;
   bool successComm = 0;
 
-  while ((!successComm) && (nrOfattempts < MAXNROFATTEMPTS))
+  hclient.begin(wclient, host[0]);
+  hclient.setConnectTimeout(500);
+  if (HTTP_CODE_OK == hclient.GET())
   {
-    hclient.begin(wclient, host);
-    hclient.setConnectTimeout(500);
-    if (HTTP_CODE_OK == hclient.GET())
-    {
-      successComm = 1;
-      transData = hclient.getString().toFloat();
-      transData -= OFFSET;
-    }
-    else
-    {
-      successComm = 0;
-      nrOfattempts ++;
-      transData = 0.0f;
-    }
+    transData = hclient.getString().toFloat();
+    transData -= OFFSET;
     hclient.end();
   }
-
+  else
+  {
+    successComm = 0;
+    nrOfattempts ++;
+    transData = InfluxBatchReaderInfo();
+  }
   if ((transData < 10.0) || transData > 84.0)
   {
     transData = 0.0f;
@@ -169,4 +160,16 @@ float BatteryLevel()
     batteryPercent = 100.0;
   }
   return batteryPercent;
+}
+
+float InfluxBatchReaderInfo() {
+  float influxData;
+  String query = "from(bucket: \"thermo_data\") |> range(start: -1m, stop:now()) |> filter(fn: (r) => r[\"_measurement\"] == \"thermostat\" and r[\"_field\"] == \"childRoomTemp\") |> last()";
+
+  FluxQueryResult result = influxclient.query(query);
+  while (result.next()) {
+    influxData = result.getValueByName("_value").getDouble();
+  }
+  result.close();
+  return influxData;
 }
